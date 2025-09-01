@@ -1,0 +1,175 @@
+!pip install scikit-learn
+!pip install numpy pandas matplotlib
+!pip install -U sentence-transformers
+from sentence_transformers import SentenceTransformer,util
+model = SentenceTransformer('all-mpnet-base-v2')
+sentences = ["Pa: Some fuel additives contain cerium oxide nanoparticles (CeO2-NPs), which can leach into waterways and soils via waste water. In a 2015 study Mael Garaud and col leagues found that CeO2-NPs can accumulate in the bodies of zebra mussels (Dreissena polymorpha). While bioaccumulation of manufactured nanoparticles may be inherently worrisome, it has been hypothesized that CeO2-NPs bioaccumulation in invertebrate like D. polymorpha could serve a valuable proxy role, observing the need for manufacturers to conduct costly and intrusive sampling of vertebrate species--such as rainbow trout (Oncorhynchus mykiss), commonly used in regulatory compliance testing--for manipulative bioaccumulation, as environmental protection laws currently require.",
+ "P1: Some fuel additives contain cerium oxide nanoparticles (CeO2-NPs), which can leach into waterways and soils via waste water.",
+ "P2: In a 2015 study Mael Garaud and colleagues found that CeO2-NPs can accumulate in the bodies of zebra mussels (Dreissena polymorpha).",
+  "P3: While bioaccumulation of manufactured nanoparticles may be inherently worrisome, it has been hypothesized that CeO2-NPs bioaccumulation in invertebrate like D. polymorpha could serve a valuable proxy role, observing the need for manufacturers to conduct costly and intrusive sampling of vertebrate species--such as rainbow trout (Oncorhynchus mykiss), commonly used in regulatory compliance testing--for manipulative bioaccumulation, as environmental protection laws currently require.",
+  "Q?: Which finding, if true, would most directly weaken the hypothesis presented in the text?",
+   "Ax) When D. polymorpha and O. mykiss are exposed to similar levels of CeO2-NPs, concentrations of CeO2-NPs in animals of both species show little variation from individual to individual.",
+    "Bv) The rate of CeO2-NPs uptake in D. polymorpha differs from the rate of CeO2-NPs uptake in O. mykiss in a way that is not yet well understood by researchers.",
+    "Cx) D.polymorpha has been shown to accumulate several other types of manufactured nanoparticles in addition to CeO2-NPs, whereas O. mykiss has been shown to accumulate only CeO2-NPs.",
+    "Dx) Compared with O. mykiss, D.polymorpha can accumulate detectable CeO2-NPs concentrations with significantly fewer negative effects."
+]
+
+embeddings = model.encode(sentences)
+for sentence, embedding in zip(sentences, embeddings):
+  print("Sentence:", sentence)
+  print("Embedding:", embedding)
+  print("")
+
+from sklearn.decomposition import PCA
+import numpy as np
+pca = PCA(n_components=3)
+embeddings_3d = pca.fit_transform(embeddings)
+print("original vector dimension:", embeddings.shape)
+print("vector dimension after lowering:", embeddings_3d.shape)
+print("\n3D-vector after lowering dimension:")
+
+for i, sentence in enumerate(sentences):
+    print(f"{sentence[:30]}...: {embeddings_3d[i]}")
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+# Create label list (according to your sentence order)
+labels = ["Pa", "P1", "P2", "P3", "Q?", "Ax", "Bv", "Cx", "Dx"]
+
+# Create 3D figure
+fig = plt.figure(figsize=(14, 10))
+ax = fig.add_subplot(111, projection='3d')
+
+# Extract XYZ coordinates
+x = embeddings_3d[:, 0]
+y = embeddings_3d[:, 1]
+z = embeddings_3d[:, 2]
+
+# Create scatter plot with different colors for different point types
+colors = ['red', 'blue', 'blue', 'blue', 'green', 'purple', 'purple', 'purple', 'purple']
+scatter = ax.scatter(x, y, z, c=colors, s=100, alpha=0.7)
+
+# Add labels
+for i, label in enumerate(labels):
+    ax.text(x[i], y[i], z[i], label, size=12, zorder=1, 
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
+
+# Define connections to create (P1-P2, P1-P3, P1-Q?, P2-P3, P2-Q?, P3-Q?)
+connections = [
+    (1, 2, 'P1-P2', 'blue'),      # P1-P2
+    (1, 3, 'P1-P3', 'blue'),      # P1-P3
+    (1, 4, 'P1-Q?', 'green'),     # P1-Q?
+    (2, 3, 'P2-P3', 'blue'),      # P2-P3
+    (2, 4, 'P2-Q?', 'green'),     # P2-Q?
+    (3, 4, 'P3-Q?', 'green')      # P3-Q?
+]
+
+# Add all connection lines
+for start_idx, end_idx, label, color in connections:
+    start_point = embeddings_3d[start_idx]
+    end_point = embeddings_3d[end_idx]
+    
+    # Draw the connection line
+    ax.plot([start_point[0], end_point[0]], 
+            [start_point[1], end_point[1]], 
+            [start_point[2], end_point[2]], 
+            color=color, linestyle='-', linewidth=2, alpha=0.7)
+    
+    # Add label for the connection line
+    midpoint = [(start_point[0] + end_point[0])/2, 
+                (start_point[1] + end_point[1])/2, 
+                (start_point[2] + end_point[2])/2]
+    ax.text(midpoint[0], midpoint[1], midpoint[2], label, 
+            fontsize=8, color=color, 
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7))
+
+# Set axis labels and title
+ax.set_xlabel('X Axis - Principal Component 1', fontsize=12, labelpad=10)
+ax.set_ylabel('Y Axis - Principal Component 2', fontsize=12, labelpad=10)
+ax.set_zlabel('Z Axis - Principal Component 3', fontsize=12, labelpad=10)
+ax.set_title('CeO2_SAT_Problem_1', fontsize=16, fontweight='bold', pad=20)
+
+# Add legend
+legend_elements = [
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='Paragraph (Pa)'),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='blue', markersize=10, label='Subclauses (P1-P3)'),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='Question (Q?)'),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='purple', markersize=10, label='Options (A-D)'),
+    plt.Line2D([0], [0], color='blue', linewidth=2, label='P Connections'),
+    plt.Line2D([0], [0], color='green', linewidth=2, label='Q Connections')
+]
+ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0, 1))
+
+# Adjust viewing angle for better visibility
+ax.view_init(elev=20, azim=30)
+
+# Add grid lines for better readability
+ax.grid(True, linestyle='--', alpha=0.5)
+
+plt.tight_layout()
+plt.show()
+
+import plotly.graph_objects as go
+# Create 3D scatter plot
+fig = go.Figure()
+
+# Add scatter points
+fig.add_trace(go.Scatter3d(
+    x=embeddings_3d[:, 0],
+    y=embeddings_3d[:, 1],
+    z=embeddings_3d[:, 2],
+    mode='markers+text',
+    text=labels,
+    textposition="top center",
+    marker=dict(
+        size=10,
+        color=[0, 1, 1, 1, 2, 3, 3, 3, 3],  # Color indices
+        colorscale=['red', 'blue', 'green', 'purple'],  # Custom colorscale
+        opacity=0.8
+    ),
+    name="Points"
+))
+
+# Define connections to create (P1-P2, P1-P3, P1-Q?, P2-P3, P2-Q?, P3-Q?)
+connections = [
+    (1, 2, 'P1-P2', 'blue'),      # P1-P2
+    (1, 3, 'P1-P3', 'blue'),      # P1-P3
+    (1, 4, 'P1-Q?', 'green'),     # P1-Q?
+    (2, 3, 'P2-P3', 'blue'),      # P2-P3
+    (2, 4, 'P2-Q?', 'green'),     # P2-Q?
+    (3, 4, 'P3-Q?', 'green')      # P3-Q?
+]
+
+# Add all connection lines
+for start_idx, end_idx, label, color in connections:
+    fig.add_trace(go.Scatter3d(
+        x=[embeddings_3d[start_idx, 0], embeddings_3d[end_idx, 0]],
+        y=[embeddings_3d[start_idx, 1], embeddings_3d[end_idx, 1]],
+        z=[embeddings_3d[start_idx, 2], embeddings_3d[end_idx, 2]],
+        mode='lines',
+        line=dict(color=color, width=4),
+        name=label,
+        showlegend=True
+    ))
+
+# Update layout
+fig.update_layout(
+    title='CeO2_SAT_Problem_1 (Interactive 3D Plot)',
+    scene=dict(
+        xaxis_title='X Axis - Principal Component 1',
+        yaxis_title='Y Axis - Principal Component 2',
+        zaxis_title='Z Axis - Principal Component 3'
+    ),
+    width=900,
+    height=700,
+    legend=dict(
+        yanchor="top",
+        y=0.99,
+        xanchor="left",
+        x=0.01
+    )
+)
+
+# Show the figure
+fig.show()
