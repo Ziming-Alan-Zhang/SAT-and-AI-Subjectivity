@@ -1,0 +1,8 @@
+I use Colab to edit my code (Jupyter or other environments are also available). I download and import python packages, such as scikit-learn, matplotlib and plotly (graphing)， sentence-transformers (embedding every 
+sentence to a high-dimensional vector) and PCA (lowering the dimension to 3 for visualizing). 
+
+I break down SAT problems in units of sentences, together with the question itself, as well as four options. Then, I give these sentences to sentence-transformers. After embedding, We acquire multiple points in 3D 
+space. Then, I make a hypothesis (it's really reasonable to do that):
+
+I connect the points of SAT problem sentences and the question itself in space, which forms a convex hull. This actually forms the logical space of this whole SAT problem (specifically view in my codes). Then, I 
+compare the distance of four answer points to the convex hull, and whichever point is the nearest to the logical space, that point is the correct answer.
